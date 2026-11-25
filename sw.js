@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kikes-huevo-cauca-cel-v9';
+const CACHE_NAME = 'kikes-huevo-cauca-cel-v10';
 const STATIC_ASSETS = [
   './',
   './index.html',
