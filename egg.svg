@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150" width="120" height="150">
+  <defs>
+    <radialGradient id="eggShell" cx="38%" cy="30%" r="68%" fx="34%" fy="26%">
+      <stop offset="0%" stop-color="#fff4e4" />
+      <stop offset="28%" stop-color="#f0c18e" />
+      <stop offset="68%" stop-color="#d4884a" />
+      <stop offset="100%" stop-color="#9e521e" />
+    </radialGradient>
+    <radialGradient id="eggHighlight" cx="35%" cy="28%" r="35%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72" />
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="eggRim" cx="50%" cy="85%" r="55%">
+      <stop offset="0%" stop-color="#5e2a08" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#5e2a08" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Sombra suave en la base -->
+  <ellipse cx="60" cy="138" rx="34" ry="7" fill="#000000" fill-opacity="0.22" />
+
+  <!-- Silueta natural de huevo -->
+  <path d="M60 10 C35 10, 16 54, 16 88 C16 120, 35 138, 60 138 C85 138, 104 120, 104 88 C104 54, 85 10, 60 10 Z"
+        fill="url(#eggShell)" stroke="#8a4416" stroke-opacity="0.35" stroke-width="1.5" />
+
+  <!-- Sombra inferior para volumen 3D -->
+  <path d="M60 10 C35 10, 16 54, 16 88 C16 120, 35 138, 60 138 C85 138, 104 120, 104 88 C104 54, 85 10, 60 10 Z"
+        fill="url(#eggRim)" />
+
+  <!-- Brillo superior -->
+  <ellipse cx="45" cy="46" rx="18" ry="26" transform="rotate(-18 45 46)" fill="url(#eggHighlight)" />
+</svg>
