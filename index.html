@@ -20,7 +20,7 @@
   <script src="lib/xlsx.full.min.js"></script>
   <script src="lib/mqtt.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -47,9 +47,9 @@
     <!-- FILTRO RÁPIDO DE PLANTAS (CAUCA) -->
     <div class="plant-bar" id="plantBar">
       <button class="pchip active" data-planta="TODAS">Todo Cauca</button>
-      <button class="pchip" data-planta="ALKA1">ALKA 1</button>
-      <button class="pchip" data-planta="ALKA2">ALKA 2</button>
-      <button class="pchip" data-planta="PALMAS">PALMAS</button>
+      <button class="pchip" data-planta="ALKA1"><span class="plant-led led-red" id="ledChipAlka1" title="Sin actualización hoy"></span><span>ALKA 1</span></button>
+      <button class="pchip" data-planta="ALKA2"><span class="plant-led led-red" id="ledChipAlka2" title="Sin actualización hoy"></span><span>ALKA 2</span></button>
+      <button class="pchip" data-planta="PALMAS"><span class="plant-led led-red" id="ledChipPalmas" title="Sin actualización hoy"></span><span>PALMAS</span></button>
     </div>
 
     <main class="m-main">
@@ -83,15 +83,24 @@
 
           <div class="hero-plants-strip">
             <div class="hp-pill">
-              <span>ALKA 1</span>
+              <div class="hp-pill-head">
+                <span class="plant-led led-red" id="ledHeroAlka1" title="Sin actualización hoy"></span>
+                <span class="hp-lbl">ALKA 1</span>
+              </div>
               <strong id="lblHoyAlka1">0</strong>
             </div>
             <div class="hp-pill">
-              <span>ALKA 2</span>
+              <div class="hp-pill-head">
+                <span class="plant-led led-red" id="ledHeroAlka2" title="Sin actualización hoy"></span>
+                <span class="hp-lbl">ALKA 2</span>
+              </div>
               <strong id="lblHoyAlka2">0</strong>
             </div>
             <div class="hp-pill">
-              <span>PALMAS</span>
+              <div class="hp-pill-head">
+                <span class="plant-led led-red" id="ledHeroPalmas" title="Sin actualización hoy"></span>
+                <span class="hp-lbl">PALMAS</span>
+              </div>
               <strong id="lblHoyPalmas">0</strong>
             </div>
           </div>
@@ -302,6 +311,6 @@
 
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

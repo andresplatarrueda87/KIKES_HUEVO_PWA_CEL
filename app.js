@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   restartPollTimer();
+  setInterval(updateAllPlantFreshnessLeds, 30000);
 });
 
 function initServiceWorker() {
@@ -1018,6 +1019,70 @@ function getSourceBadgeMeta(source) {
   return { cls: 'src-none', text: 'Sin dato' };
 }
 
+/**
+ * Calcula color LED según antigüedad de la última actualización:
+ * - < 10 min: verde
+ * - 10 a 15 min: amarillo
+ * - > 15 min o sin dato: rojo
+ */
+function getPlantFreshnessMeta(modifiedTime, nowMs = Date.now()) {
+  const tsMs = modifiedTime ? new Date(modifiedTime).getTime() : NaN;
+  if (!Number.isFinite(tsMs) || tsMs <= 0) {
+    return { cls: 'led-red', status: 'red', diffMin: null, title: 'Sin actualización registrada hoy (> 15 min)' };
+  }
+  const diffMin = Math.max(0, (nowMs - tsMs) / 60000);
+  const minsInt = Math.floor(diffMin);
+  const timeStr = new Date(tsMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (diffMin > 15) {
+    return {
+      cls: 'led-red',
+      status: 'red',
+      diffMin,
+      title: `Última act.: ${timeStr} (hace ${minsInt} min · >15 min)`
+    };
+  }
+  if (diffMin >= 10) {
+    return {
+      cls: 'led-yellow',
+      status: 'yellow',
+      diffMin,
+      title: `Última act.: ${timeStr} (hace ${minsInt} min · 10-15 min)`
+    };
+  }
+  return {
+    cls: 'led-green',
+    status: 'green',
+    diffMin,
+    title: `Última act.: ${timeStr} (hace ${minsInt} min · al día)`
+  };
+}
+
+function applyLedElementState(el, freshness) {
+  if (!el) return;
+  el.classList.remove('led-green', 'led-yellow', 'led-red');
+  el.classList.add(freshness.cls);
+  el.title = freshness.title;
+}
+
+function updateAllPlantFreshnessLeds() {
+  const todayStr = getLocalDateStr();
+  const nowMs = Date.now();
+  const targets = [
+    { id: 'ALKA1', heroLed: 'ledHeroAlka1', chipLed: 'ledChipAlka1' },
+    { id: 'ALKA2', heroLed: 'ledHeroAlka2', chipLed: 'ledChipAlka2' },
+    { id: 'PALMAS', heroLed: 'ledHeroPalmas', chipLed: 'ledChipPalmas' }
+  ];
+  for (const t of targets) {
+    const entry = getEffectivePlantEntry(t.id, todayStr);
+    const freshness = getPlantFreshnessMeta(entry?.modifiedTime, nowMs);
+    applyLedElementState(document.getElementById(t.heroLed), freshness);
+    applyLedElementState(document.getElementById(t.chipLed), freshness);
+    const blockLed = document.querySelector(`.plant-block[data-planta="${t.id}"] .pb-right .plant-led`);
+    applyLedElementState(blockLed, freshness);
+  }
+}
+
 // =============================================================================
 // RENDERIZADO MÓVIL CAUCA
 // =============================================================================
@@ -1199,6 +1264,7 @@ function renderAll() {
     ? `${hasAnyMqttVisible ? 'MQTT' : 'Act.'} ${new Date(latestMod).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : '--:--';
   updateHeroMetricsUi(todayStr, State.selectedPlant, totalHoy, totalAlka1, totalAlka2, totalPalmas);
+  updateAllPlantFreshnessLeds();
 
   const recentCutoff = Date.now() - 5500;
 
@@ -1207,6 +1273,7 @@ function renderAll() {
     const entry = getEffectivePlantEntry(plant.id, todayStr);
     const totalP = Number(entry?.totalPlanta || 0);
     const badge = getSourceBadgeMeta(entry?.source);
+    const freshness = getPlantFreshnessMeta(entry?.modifiedTime);
     const byNum = new Map((entry?.galpones || []).map((g) => [g.numeroGalpon, g]));
     const sections = plant.sections || [{ key: plant.id, title: plant.prodLabel, rangeLabel: plant.rangeLabel, minGalpon: plant.minGalpon, maxGalpon: plant.maxGalpon }];
     const splitBySection = sections.length > 1;
@@ -1240,7 +1307,7 @@ function renderAll() {
     }).join('');
 
     return `
-      <div class="plant-block">
+      <div class="plant-block" data-planta="${plant.id}">
         <div class="plant-block-head">
           <div class="pb-title">
             <span class="pb-dot" style="background:${plant.color};"></span>
@@ -1250,6 +1317,7 @@ function renderAll() {
             </div>
           </div>
           <div class="pb-right">
+            <span class="plant-led ${freshness.cls}" title="${escapeHtml(freshness.title)}"></span>
             <span class="src-pill ${badge.cls}">${badge.text}</span>
             <div class="pb-total-box">
               <div class="pb-total">${totalP.toLocaleString()} huevos</div>
@@ -1348,7 +1416,29 @@ function initChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = Number(ctx.parsed?.y || 0);
+              return ` ${ctx.dataset.label}: ${val.toLocaleString()} huevos`;
+            },
+            footer: (items) => {
+              if (!items || items.length === 0) return '';
+              const chart = items[0].chart;
+              const idx = items[0].dataIndex;
+              let total = 0;
+              chart.data.datasets.forEach((ds, i) => {
+                if (chart.isDatasetVisible(i)) {
+                  total += Number(ds.data[idx] || 0);
+                }
+              });
+              return `Total: ${total.toLocaleString()} huevos`;
+            }
+          }
+        }
+      },
       scales: {
         x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } },
         y: {
