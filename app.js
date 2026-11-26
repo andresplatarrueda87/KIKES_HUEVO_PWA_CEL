@@ -1324,7 +1324,6 @@ function buildPlantSectionRender(plant, section, byNum, totalPlanta, recentCutof
           ${tagHtml}
         </div>
         <div class="mgalpon-val">${val.toLocaleString()}</div>
-        <div class="mgalpon-bar"><div style="width:${Math.min(100, Number(pct))}%;background:${plant.color};"></div></div>
         <div class="mgalpon-pct ${gSrc === 'MQTT' ? 'is-mqtt-txt' : ''}">${escapeHtml(footerTxt)}</div>
       </div>
     `);
