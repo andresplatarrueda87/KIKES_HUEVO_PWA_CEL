@@ -126,7 +126,8 @@ body {
 .hero-card .plant-led.led-pending { animation: ledPendingHeroGreenYellow 1.25s ease-in-out infinite; }
 .pchip .plant-led { width: 7.5px; height: 7.5px; border-width: 1px; }
 .pchip.active .plant-led { border-color: rgba(255,255,255,0.9); }
-.pb-right .plant-led { width: 8.5px; height: 8.5px; border-color: rgba(15,23,42,0.16); }
+.pb-right .plant-led, .prod-sub-right .plant-led { width: 8.5px; height: 8.5px; border-color: rgba(15,23,42,0.16); }
+.plant-led.mini-led { width: 7px; height: 7px; border-width: 1px; border-color: rgba(15,23,42,0.16); }
 
 @keyframes ledPendingGreenYellow {
   0%, 100% { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.9); }
@@ -262,6 +263,7 @@ body {
 .mgalpon-card.mqtt-flash { box-shadow: 0 0 0 2px #22c55e, 0 4px 12px rgba(34, 197, 94, 0.25); }
 
 .mgalpon-top { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 3px; }
+.mgalpon-name-wrap { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
 .mgalpon-name { font-size: 12.5px; font-weight: 700; }
 .mgalpon-tag { font-size: 10px; font-weight: 800; background: #f1f5f9; color: #334155; padding: 2px 7px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mgalpon-tag.tag-mqtt { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
