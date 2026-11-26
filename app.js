@@ -1170,7 +1170,6 @@ function buildPlantSectionRender(plant, section, byNum, totalPlanta, recentCutof
 function renderAll() {
   const todayStr = getLocalDateStr();
   const targetDates = getTarget8Dates(todayStr);
-  const past7Dates = targetDates.slice(1);
   const visiblePlants = getVisiblePlants();
 
   const todayAlka1 = getEffectivePlantEntry('ALKA1', todayStr);
@@ -1181,17 +1180,7 @@ function renderAll() {
   const totalAlka2 = Number(todayAlka2?.totalPlanta || 0);
   const totalPalmas = Number(todayPalmas?.totalPlanta || 0);
 
-  const { total: totalHoy, activos: activosHoy } = getDayTotalForVisible(todayStr);
-  const totalCap = visiblePlants.reduce((s, p) => s + (p.maxGalpon - p.minGalpon + 1), 0);
-
-  const pastTotals = past7Dates.map((f) => getDayTotalForVisible(f).total).filter((v) => v > 0);
-  const prom7 = pastTotals.length > 0 ? Math.round(pastTotals.reduce((a, b) => a + b, 0) / pastTotals.length) : 0;
-
-  let deltaStr = '--';
-  if (prom7 > 0 && totalHoy > 0) {
-    const pct = ((totalHoy - prom7) / prom7) * 100;
-    deltaStr = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-  }
+  const { total: totalHoy } = getDayTotalForVisible(todayStr);
 
   let latestMod = null;
   let hasAnyMqttVisible = false;
@@ -1210,9 +1199,6 @@ function renderAll() {
     ? `${hasAnyMqttVisible ? 'MQTT' : 'Act.'} ${new Date(latestMod).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : '--:--';
   updateHeroMetricsUi(todayStr, State.selectedPlant, totalHoy, totalAlka1, totalAlka2, totalPalmas);
-  document.getElementById('lblGalponesActivos').textContent = `${activosHoy} / ${totalCap}`;
-  document.getElementById('lblProm7Dias').textContent = prom7.toLocaleString();
-  document.getElementById('lblDelta7Dias').textContent = deltaStr;
 
   const recentCutoff = Date.now() - 5500;
 
