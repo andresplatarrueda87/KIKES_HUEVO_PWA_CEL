@@ -247,6 +247,8 @@ function loadMqttCacheIntoMemory() {
           total,
           raw: slot.raw || '',
           receivedAt: slot.receivedAt || null,
+          isRetained: !!slot.isRetained,
+          payloadFormat: slot.payloadFormat || 'raw',
           topic: slot.topic || State.mqttCfg.topics[def.key]
         });
       }
@@ -267,6 +269,8 @@ function persistMqttCache() {
         updatedAtByNum: slot.updatedAtByNum || {},
         raw: slot.raw,
         receivedAt: slot.receivedAt,
+        isRetained: !!slot.isRetained,
+        payloadFormat: slot.payloadFormat || 'raw',
         topic: slot.topic
       };
     }
@@ -366,25 +370,35 @@ function connectMqttClient() {
   });
 }
 
-function extractRawStringFromPayload(payloadStr) {
+function parseMqttPayload(payloadStr) {
   const s = String(payloadStr || '').trim();
-  if (!s) return '';
+  if (!s) return { raw: '', timestampIso: null, format: 'empty' };
   if (s.startsWith('{')) {
     try {
       const obj = JSON.parse(s);
       if (obj && obj.value !== undefined && obj.value !== null) {
-        return String(obj.value).trim();
+        const rawVal = String(obj.value).trim();
+        const rawTs = obj.timestamp ?? obj.ts ?? obj.fechaHora ?? null;
+        let timestampIso = null;
+        if (rawTs) {
+          const parsedMs = Date.parse(String(rawTs));
+          if (Number.isFinite(parsedMs) && parsedMs > 0) {
+            timestampIso = new Date(parsedMs).toISOString();
+          }
+        }
+        return { raw: rawVal, timestampIso, format: 'json' };
       }
     } catch { }
   }
-  return s;
+  return { raw: s, timestampIso: null, format: 'raw' };
 }
 
 function handleIncomingMqttMessage(topic, payloadStr, isRetained = false) {
   const matchingDefs = MQTT_TOPIC_DEFS.filter((d) => State.mqttCfg.topics[d.key] === topic);
   if (matchingDefs.length === 0) return;
 
-  const raw = extractRawStringFromPayload(payloadStr);
+  const parsedPayload = parseMqttPayload(payloadStr);
+  const raw = parsedPayload.raw;
   if (!raw) return;
 
   const parts = raw.split(/[|,;]/).map((p) => p.trim());
@@ -392,14 +406,14 @@ function handleIncomingMqttMessage(topic, payloadStr, isRetained = false) {
 
   const todayStr = getLocalDateStr();
   const nowIso = new Date().toISOString();
-  let updated = false;
+  const effectiveTs = parsedPayload.timestampIso || nowIso;
+  let anyChanged = false;
 
   for (const def of matchingDefs) {
     const prevSlot = State.mqttDataByKey.get(def.key);
     const sameDayPrev = prevSlot && prevSlot.fecha === todayStr ? prevSlot : null;
     const expectedCount = def.maxGalpon - def.minGalpon + 1;
     const valuesByNum = {};
-    const updatedAtByNum = {};
     let total = 0;
 
     for (let i = 0; i < expectedCount; i++) {
@@ -408,15 +422,31 @@ function handleIncomingMqttMessage(topic, payloadStr, isRetained = false) {
       const val = parseInt(cell, 10) || 0;
       valuesByNum[galponNum] = val;
       total += val;
+    }
 
+    const sameAllValues = !!sameDayPrev && (
+      sameDayPrev.raw === raw ||
+      Array.from({ length: expectedCount }, (_, idx) => def.minGalpon + idx)
+        .every((n) => Number(sameDayPrev.valuesByNum?.[n] ?? NaN) === Number(valuesByNum[n]))
+    );
+
+    if (sameAllValues) {
+      // El valor completo no cambió: conservar intactas todas las horas (tópico, galpones y LEDs)
+      continue;
+    }
+
+    const updatedAtByNum = {};
+    for (let i = 0; i < expectedCount; i++) {
+      const galponNum = def.minGalpon + i;
+      const val = valuesByNum[galponNum];
       const prevVal = sameDayPrev?.valuesByNum?.[galponNum];
       if (!sameDayPrev || prevVal !== val) {
-        updatedAtByNum[galponNum] = nowIso;
+        updatedAtByNum[galponNum] = effectiveTs;
         if (sameDayPrev) {
           State.recentMqttChanges.set(`${def.plantId}|${galponNum}`, Date.now());
         }
       } else {
-        updatedAtByNum[galponNum] = sameDayPrev.updatedAtByNum?.[galponNum] || nowIso;
+        updatedAtByNum[galponNum] = sameDayPrev.updatedAtByNum?.[galponNum] || sameDayPrev.receivedAt || effectiveTs;
       }
     }
 
@@ -426,15 +456,16 @@ function handleIncomingMqttMessage(topic, payloadStr, isRetained = false) {
       updatedAtByNum,
       total,
       raw,
-      receivedAt: nowIso,
+      receivedAt: effectiveTs,
       isRetained,
+      payloadFormat: parsedPayload.format,
       topic
     });
     State.lastMqttTopicLabel = def.label;
-    updated = true;
+    anyChanged = true;
   }
 
-  if (updated) {
+  if (anyChanged) {
     persistMqttCache();
     flashMqttDot();
     updateMqttStatusLabel();
@@ -457,6 +488,7 @@ function updateMqttStatusLabel() {
   const todayStr = getLocalDateStr();
   let receivedCount = 0;
   let latestIso = null;
+  let latestLabel = '';
 
   for (const def of MQTT_TOPIC_DEFS) {
     const slot = State.mqttDataByKey.get(def.key);
@@ -464,13 +496,15 @@ function updateMqttStatusLabel() {
       receivedCount++;
       if (slot.receivedAt && (!latestIso || slot.receivedAt > latestIso)) {
         latestIso = slot.receivedAt;
+        latestLabel = def.label;
       }
     }
   }
 
   if (mqttClient && mqttClient.connected) {
+    const labelName = latestLabel ? latestLabel.split('(')[0].trim() : (State.lastMqttTopicLabel ? State.lastMqttTopicLabel.split('(')[0].trim() : '');
     const timePart = latestIso
-      ? ` · ${State.lastMqttTopicLabel ? State.lastMqttTopicLabel.split('(')[0].trim() + ' ' : ''}${new Date(latestIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      ? ` · ${labelName ? labelName + ' ' : ''}${new Date(latestIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
       : '';
     setMqttVisual('online', `MQTT: ${receivedCount}/${MQTT_TOPIC_DEFS.length}${timePart}`);
   } else if (State.mqttCfg.enabled) {
